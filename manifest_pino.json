@@ -1,0 +1,12 @@
+{
+  "name": "SALA Pino",
+  "short_name": "SALA",
+  "start_url": "SALA_PINO.html",
+  "display": "standalone",
+  "background_color": "#1E2D5A",
+  "theme_color": "#1E2D5A",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

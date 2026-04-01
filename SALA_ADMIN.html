@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SALA - Pannello Admin</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; font-family:-apple-system,'Helvetica Neue',Arial,sans-serif; background:#F4F1EC; color:#1a1a1a; }
+button, input, select { -webkit-appearance:none; appearance:none; border:none; outline:none; font-family:inherit; }
+
+/* LOGIN */
+.login-screen { position:fixed; top:0; left:0; right:0; bottom:0; background:#1E2D5A; display:-webkit-flex; display:flex; -webkit-flex-direction:column; flex-direction:column; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; z-index:9999; }
+.login-logo { font-size:56px; font-weight:800; color:#ffffff; letter-spacing:8px; margin-bottom:6px; }
+.login-sub { font-size:13px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:3px; margin-bottom:40px; }
+.pin-dots { display:-webkit-flex; display:flex; gap:14px; margin-bottom:36px; }
+.pin-dot { width:16px; height:16px; border-radius:50%; border:2px solid rgba(255,255,255,0.4); background:transparent; transition:all 0.2s; }
+.pin-dot.filled { background:#ffffff; border-color:#ffffff; }
+.pin-dot.error { background:#C8102E; border-color:#C8102E; }
+.pin-input-hidden { position:absolute; opacity:0; pointer-events:none; }
+.numpad { display:grid; grid-template-columns:repeat(3,72px); gap:10px; }
+.numpad-btn { width:72px; height:72px; border-radius:50%; background:rgba(255,255,255,0.08); color:#ffffff; font-size:26px; font-weight:600; display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; cursor:pointer; transition:background 0.15s; }
+.numpad-btn:hover { background:rgba(255,255,255,0.18); }
+.numpad-btn:active { background:rgba(255,255,255,0.25); }
+.numpad-btn.empty { background:transparent; pointer-events:none; }
+.numpad-btn.del { font-size:18px; }
+
+/* LAYOUT */
+.app { display:none; height:100%; -webkit-flex-direction:column; flex-direction:column; }
+.app.visible { display:-webkit-flex; display:flex; }
+
+.top-bar { background:#1E2D5A; padding:14px 28px; display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:space-between; justify-content:space-between; }
+.top-left { display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; gap:14px; }
+.top-logo { font-size:24px; font-weight:800; color:#ffffff; letter-spacing:4px; }
+.top-badge { font-size:11px; color:rgba(255,255,255,0.45); text-transform:uppercase; letter-spacing:2px; padding:4px 10px; border:1px solid rgba(255,255,255,0.15); border-radius:6px; }
+.sync-indicator { display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; gap:8px; font-size:12px; color:rgba(255,255,255,0.6); }
+.sync-dot { width:9px; height:9px; border-radius:50%; background:#C8102E; transition:background 0.3s; }
+.sync-dot.online { background:#1a7a4a; }
+.top-time { font-size:13px; color:rgba(255,255,255,0.5); }
+
+/* TABS */
+.tab-bar { background:#ffffff; border-bottom:1px solid #E0DDD8; padding:0 28px; display:-webkit-flex; display:flex; gap:0; }
+.tab { padding:14px 24px; font-size:14px; font-weight:600; color:#888888; cursor:pointer; border-bottom:3px solid transparent; transition:all 0.2s; }
+.tab:hover { color:#1E2D5A; }
+.tab.active { color:#1E2D5A; border-bottom-color:#C8102E; }
+
+/* CONTENT */
+.content { -webkit-flex:1; flex:1; overflow:hidden; }
+.panel { display:none; height:100%; overflow-y:auto; padding:24px 28px 40px; }
+.panel.active { display:block; }
+
+/* CARDS */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+.stat-card { background:#ffffff; border-radius:14px; border:1px solid #E0DDD8; padding:20px; }
+.stat-label { font-size:12px; color:#888888; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.stat-value { font-size:32px; font-weight:800; }
+.stat-value.red { color:#C8102E; }
+.stat-value.green { color:#1a7a4a; }
+.stat-value.blue { color:#1E2D5A; }
+.stat-sub { font-size:12px; color:#888888; margin-top:4px; }
+
+/* CHART */
+.chart-container { background:#ffffff; border-radius:14px; border:1px solid #E0DDD8; padding:24px; margin-bottom:24px; }
+.chart-header { display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:space-between; justify-content:space-between; margin-bottom:20px; }
+.chart-title { font-size:16px; font-weight:700; color:#1E2D5A; }
+.chart-period-btns { display:-webkit-flex; display:flex; gap:6px; }
+.chart-period-btn { padding:6px 14px; border-radius:8px; font-size:12px; font-weight:600; color:#888888; background:#F4F1EC; cursor:pointer; transition:all 0.15s; border:1px solid #E0DDD8; }
+.chart-period-btn:hover { background:#E0DDD8; }
+.chart-period-btn.active { background:#1E2D5A; color:#ffffff; border-color:#1E2D5A; }
+.chart-canvas-wrap { position:relative; width:100%; height:280px; }
+.chart-canvas-wrap canvas { width:100%; height:100%; }
+
+/* DEBITORI TABLE */
+.section-card { background:#ffffff; border-radius:14px; border:1px solid #E0DDD8; padding:24px; margin-bottom:24px; }
+.section-title { font-size:16px; font-weight:700; color:#1E2D5A; margin-bottom:16px; }
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; }
+th { text-align:left; font-size:12px; color:#888888; text-transform:uppercase; letter-spacing:1px; padding:10px 14px; border-bottom:2px solid #E0DDD8; }
+td { padding:12px 14px; border-bottom:1px solid #F4F1EC; font-size:14px; }
+tr:hover td { background:#FAFAF8; }
+.rank-num { display:inline-block; width:26px; height:26px; border-radius:8px; background:#F4F1EC; text-align:center; line-height:26px; font-weight:700; font-size:12px; color:#1E2D5A; }
+.rank-1 { background:#C8102E; color:#ffffff; }
+.rank-2 { background:#1E2D5A; color:#ffffff; }
+.rank-3 { background:#E07B00; color:#ffffff; }
+
+/* CLIENTI TAB */
+.search-row { display:-webkit-flex; display:flex; gap:12px; margin-bottom:20px; }
+.search-big { -webkit-flex:1; flex:1; padding:12px 18px; border-radius:12px; background:#ffffff; border:1px solid #E0DDD8; font-size:15px; color:#1a1a1a; }
+.search-big::placeholder { color:#888888; }
+.client-grid { display:grid; grid-template-columns:340px 1fr; gap:20px; height:calc(100vh - 220px); }
+.client-sidebar { overflow-y:auto; padding-right:4px; }
+.client-detail-panel { overflow-y:auto; }
+.client-row { background:#ffffff; border-radius:12px; border:1px solid #E0DDD8; padding:14px 16px; margin-bottom:8px; cursor:pointer; display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; transition:all 0.15s; }
+.client-row:hover { border-color:#1E2D5A; }
+.client-row.selected { border-color:#1E2D5A; background:#f0f2f8; }
+.cr-name { -webkit-flex:1; flex:1; font-size:15px; font-weight:600; }
+.cr-badge { display:inline-block; padding:3px 8px; border-radius:8px; font-size:11px; font-weight:600; margin-right:8px; }
+.cr-badge.saldato { background:rgba(26,122,74,0.1); color:#1a7a4a; }
+.cr-badge.debito { background:rgba(200,16,46,0.1); color:#C8102E; }
+.cr-amount { font-size:18px; font-weight:700; }
+
+/* DETAIL PANEL */
+.detail-empty { display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; height:100%; color:#888888; font-size:15px; }
+.detail-header { display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:space-between; justify-content:space-between; margin-bottom:20px; }
+.detail-name { font-size:22px; font-weight:800; color:#1E2D5A; }
+.detail-saldo-box { padding:20px 28px; border-radius:14px; text-align:center; margin-bottom:20px; }
+.detail-saldo-box.red { background:rgba(200,16,46,0.06); border:1px solid rgba(200,16,46,0.15); }
+.detail-saldo-box.green { background:rgba(26,122,74,0.06); border:1px solid rgba(26,122,74,0.15); }
+.detail-saldo-label { font-size:12px; color:#888888; margin-bottom:4px; }
+.detail-saldo-value { font-size:36px; font-weight:800; }
+.detail-saldo-value.red { color:#C8102E; }
+.detail-saldo-value.green { color:#1a7a4a; }
+.detail-section-title { font-size:14px; font-weight:700; color:#1E2D5A; margin-bottom:12px; text-transform:uppercase; letter-spacing:1px; }
+.mov-table-wrap { background:#ffffff; border-radius:12px; border:1px solid #E0DDD8; overflow:hidden; }
+.mov-table-wrap table td { font-size:13px; }
+.tipo-badge { display:inline-block; padding:3px 10px; border-radius:6px; font-size:12px; font-weight:600; }
+.tipo-badge.sospeso { background:rgba(200,16,46,0.1); color:#C8102E; }
+.tipo-badge.rientro { background:rgba(26,122,74,0.1); color:#1a7a4a; }
+
+/* LOG TAB */
+.log-filters { display:-webkit-flex; display:flex; gap:10px; margin-bottom:16px; -webkit-flex-wrap:wrap; flex-wrap:wrap; -webkit-align-items:center; align-items:center; }
+.log-filter-group { display:-webkit-flex; display:flex; gap:6px; -webkit-align-items:center; align-items:center; }
+.log-filter-label { font-size:12px; color:#888888; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-right:4px; }
+.log-filter-btn { padding:6px 14px; border-radius:8px; font-size:13px; font-weight:600; color:#888888; background:#ffffff; border:1px solid #E0DDD8; cursor:pointer; transition:all 0.15s; }
+.log-filter-btn:hover { border-color:#1E2D5A; }
+.log-filter-btn.active { background:#1E2D5A; color:#ffffff; border-color:#1E2D5A; }
+.log-search { padding:8px 14px; border-radius:8px; background:#ffffff; border:1px solid #E0DDD8; font-size:13px; color:#1a1a1a; width:220px; }
+.log-search::placeholder { color:#888888; }
+.log-date-input { padding:8px 12px; border-radius:8px; background:#ffffff; border:1px solid #E0DDD8; font-size:13px; color:#1a1a1a; }
+.log-count { font-size:13px; color:#888888; margin-bottom:12px; }
+
+.log-action { font-weight:600; }
+.log-action.sospeso { color:#C8102E; }
+.log-action.rientro { color:#1a7a4a; }
+.log-action.nuovo_cliente { color:#1E2D5A; }
+.log-action.elimina_cliente { color:#C8102E; }
+
+/* LOAD MORE */
+.load-more-btn { display:block; width:100%; padding:12px; border-radius:10px; background:#F4F1EC; color:#1E2D5A; font-size:14px; font-weight:600; text-align:center; cursor:pointer; margin-top:12px; border:1px solid #E0DDD8; transition:background 0.15s; }
+.load-more-btn:hover { background:#E0DDD8; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:#E0DDD8; border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:#ccc; }
+
+/* TOAST */
+.toast { position:fixed; top:24px; right:28px; background:#1a1a1a; color:#ffffff; padding:12px 24px; border-radius:12px; font-size:14px; font-weight:600; z-index:9999; transform:translateY(-80px); transition:transform 0.3s; pointer-events:none; }
+.toast.show { transform:translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-logo">SALA</div>
+  <div class="login-sub">Pannello Admin</div>
+  <div class="pin-dots" id="pinDots">
+    <div class="pin-dot" id="dot0"></div>
+    <div class="pin-dot" id="dot1"></div>
+    <div class="pin-dot" id="dot2"></div>
+    <div class="pin-dot" id="dot3"></div>
+    <div class="pin-dot" id="dot4"></div>
+    <div class="pin-dot" id="dot5"></div>
+  </div>
+  <div class="numpad">
+    <div class="numpad-btn" onclick="pinPress('1')">1</div>
+    <div class="numpad-btn" onclick="pinPress('2')">2</div>
+    <div class="numpad-btn" onclick="pinPress('3')">3</div>
+    <div class="numpad-btn" onclick="pinPress('4')">4</div>
+    <div class="numpad-btn" onclick="pinPress('5')">5</div>
+    <div class="numpad-btn" onclick="pinPress('6')">6</div>
+    <div class="numpad-btn" onclick="pinPress('7')">7</div>
+    <div class="numpad-btn" onclick="pinPress('8')">8</div>
+    <div class="numpad-btn" onclick="pinPress('9')">9</div>
+    <div class="numpad-btn empty"></div>
+    <div class="numpad-btn" onclick="pinPress('0')">0</div>
+    <div class="numpad-btn del" onclick="pinDelete()">&#9003;</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="top-left">
+      <div class="top-logo">SALA</div>
+      <div class="top-badge">Pannello Admin</div>
+      <div class="sync-indicator">
+        <div class="sync-dot" id="syncDot"></div>
+        <span id="syncLabel">Offline</span>
+      </div>
+    </div>
+    <div class="top-time" id="topTime"></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('dashboard')">Dashboard</div>
+    <div class="tab" onclick="switchTab('clienti')">Clienti</div>
+    <div class="tab" onclick="switchTab('log')">Log Operazioni</div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <!-- DASHBOARD -->
+    <div class="panel active" id="panel-dashboard">
+      <div class="stats-row" id="statsRow"></div>
+      <div class="chart-container">
+        <div class="chart-header">
+          <div class="chart-title">Andamento Sospesi / Rientri</div>
+          <div class="chart-period-btns" id="chartPeriodBtns">
+            <div class="chart-period-btn" onclick="setChartPeriod(7, this)">7g</div>
+            <div class="chart-period-btn active" onclick="setChartPeriod(30, this)">30g</div>
+            <div class="chart-period-btn" onclick="setChartPeriod(90, this)">90g</div>
+          </div>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chartCanvas"></canvas>
+        </div>
+      </div>
+      <div class="section-card">
+        <div class="section-title">Classifica Debitori</div>
+        <div class="table-wrap" id="debitoriTable"></div>
+      </div>
+    </div>
+
+    <!-- CLIENTI -->
+    <div class="panel" id="panel-clienti">
+      <div class="search-row">
+        <input class="search-big" type="text" placeholder="Cerca cliente per nome..." id="clientSearch" oninput="filterClienti()">
+      </div>
+      <div class="client-grid">
+        <div class="client-sidebar" id="clientSidebar"></div>
+        <div class="client-detail-panel" id="clientDetail">
+          <div class="detail-empty">Seleziona un cliente dalla lista</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOG -->
+    <div class="panel" id="panel-log">
+      <div class="log-filters">
+        <div class="log-filter-group">
+          <span class="log-filter-label">Operatore</span>
+          <div class="log-filter-btn active" onclick="setLogOperatore('tutti', this)">Tutti</div>
+          <div class="log-filter-btn" onclick="setLogOperatore('ANGELO', this)">Angelo</div>
+          <div class="log-filter-btn" onclick="setLogOperatore('PINO', this)">Pino</div>
+        </div>
+        <div class="log-filter-group">
+          <span class="log-filter-label">Tipo</span>
+          <div class="log-filter-btn active" onclick="setLogTipo('tutti', this)">Tutti</div>
+          <div class="log-filter-btn" onclick="setLogTipo('sospeso', this)">Sospesi</div>
+          <div class="log-filter-btn" onclick="setLogTipo('rientro', this)">Rientri</div>
+          <div class="log-filter-btn" onclick="setLogTipo('nuovo_cliente', this)">Nuovi</div>
+          <div class="log-filter-btn" onclick="setLogTipo('elimina_cliente', this)">Eliminati</div>
+        </div>
+        <div class="log-filter-group">
+          <span class="log-filter-label">Da</span>
+          <input class="log-date-input" type="date" id="logDateFrom" onchange="loadLogData()">
+          <span class="log-filter-label">A</span>
+          <input class="log-date-input" type="date" id="logDateTo" onchange="loadLogData()">
+        </div>
+        <input class="log-search" type="text" placeholder="Cerca cliente nel log..." id="logSearch" oninput="loadLogData()">
+      </div>
+      <div class="log-count" id="logCount"></div>
+      <div class="section-card" style="padding:0;">
+        <div class="table-wrap" id="logTableWrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== CONFIG =====
+var PIN_ADMIN = '031091';
+var SUPABASE_URL = 'https://xldbpjkqjiqwhumfkduq.supabase.co';
+var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsZGJwamtxamlxd2h1bWZrZHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDk3MDQsImV4cCI6MjA5MDYyNTcwNH0.0vg_udelZYAAeZTctQNpp2J8l1-qFVbybA_mUyElvq4';
+
+// ===== STATE =====
+var clienti = [];
+var movimenti = [];
+var pinBuffer = '';
+var selectedClientId = null;
+var chartPeriod = 30;
+var logOperatoreFilter = 'tutti';
+var logTipoFilter = 'tutti';
+var logOffset = 0;
+var logPageSize = 100;
+var allLogs = [];
+
+// ===== SUPABASE REST =====
+function sbFetch(path, options) {
+  var opts = options || {};
+  var headers = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY,
+    'Content-Type': 'application/json'
+  };
+  if (opts.prefer) headers['Prefer'] = opts.prefer;
+  if (opts.headers) {
+    for (var k in opts.headers) { headers[k] = opts.headers[k]; }
+  }
+  return fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    method: opts.method || 'GET',
+    headers: headers,
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+}
+
+// ===== LOGIN =====
+function pinPress(n) {
+  if (pinBuffer.length >= 6) return;
+  pinBuffer += n;
+  updatePinDots();
+  if (pinBuffer.length === 6) {
+    if (pinBuffer === PIN_ADMIN) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').classList.add('visible');
+      init();
+    } else {
+      var dots = document.querySelectorAll('#pinDots .pin-dot');
+      for (var i = 0; i < dots.length; i++) dots[i].classList.add('error');
+      setTimeout(function() {
+        pinBuffer = '';
+        updatePinDots();
+        var dots2 = document.querySelectorAll('#pinDots .pin-dot');
+        for (var j = 0; j < dots2.length; j++) dots2[j].classList.remove('error');
+      }, 500);
+    }
+  }
+}
+function pinDelete() {
+  if (pinBuffer.length > 0) { pinBuffer = pinBuffer.slice(0, -1); updatePinDots(); }
+}
+function updatePinDots() {
+  for (var i = 0; i < 6; i++) {
+    var d = document.getElementById('dot' + i);
+    if (i < pinBuffer.length) d.classList.add('filled'); else d.classList.remove('filled');
+  }
+}
+
+// ===== INIT =====
+function init() {
+  loadAll();
+  connectRealtime();
+  updateClock();
+  setInterval(updateClock, 60000);
+}
+
+function updateClock() {
+  var now = new Date();
+  document.getElementById('topTime').textContent = pad(now.getDate()) + '/' + pad(now.getMonth() + 1) + '/' + now.getFullYear() + '  ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+}
+
+function loadAll() {
+  return Promise.all([
+    sbFetch('clienti?select=*').then(function(r) { return r.json(); }),
+    sbFetch('movimenti?select=*&order=ts.desc').then(function(r) { return r.json(); })
+  ]).then(function(results) {
+    clienti = results[0] || [];
+    movimenti = results[1] || [];
+    updateSyncDot(true);
+    renderDashboard();
+    renderClientiSidebar();
+    if (selectedClientId) renderClientDetail(selectedClientId);
+    loadLogData();
+  }).catch(function(err) {
+    console.error('Load error:', err);
+    updateSyncDot(false);
+  });
+}
+
+// ===== REALTIME =====
+function connectRealtime() {
+  try {
+    var wsUrl = SUPABASE_URL.replace('https://', 'wss://') + '/realtime/v1/websocket?apikey=' + SUPABASE_KEY + '&vsn=1.0.0';
+    var ws = new WebSocket(wsUrl);
+    var hb = null;
+    var ref = 0;
+    ws.onopen = function() {
+      ref++; ws.send(JSON.stringify({ topic:'realtime:public:clienti', event:'phx_join', payload:{ config:{ broadcast:{self:false}, postgres_changes:[{event:'*',schema:'public',table:'clienti'}] } }, ref:String(ref) }));
+      ref++; ws.send(JSON.stringify({ topic:'realtime:public:movimenti', event:'phx_join', payload:{ config:{ broadcast:{self:false}, postgres_changes:[{event:'*',schema:'public',table:'movimenti'}] } }, ref:String(ref) }));
+      ref++; ws.send(JSON.stringify({ topic:'realtime:public:log', event:'phx_join', payload:{ config:{ broadcast:{self:false}, postgres_changes:[{event:'*',schema:'public',table:'log'}] } }, ref:String(ref) }));
+      hb = setInterval(function() { ref++; ws.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:String(ref)})); }, 30000);
+      updateSyncDot(true);
+    };
+    ws.onmessage = function(e) {
+      try { var msg = JSON.parse(e.data); if (msg.event === 'postgres_changes') loadAll(); } catch(ex) {}
+    };
+    ws.onclose = function() { updateSyncDot(false); if(hb) clearInterval(hb); setTimeout(connectRealtime, 3000); };
+    ws.onerror = function() { updateSyncDot(false); ws.close(); };
+  } catch(ex) { setTimeout(connectRealtime, 3000); }
+}
+
+function updateSyncDot(online) {
+  var dot = document.getElementById('syncDot');
+  var label = document.getElementById('syncLabel');
+  if (online) { dot.classList.add('online'); label.textContent = 'Connesso'; }
+  else { dot.classList.remove('online'); label.textContent = 'Offline'; }
+}
+
+// ===== TABS =====
+function switchTab(name) {
+  var tabs = document.querySelectorAll('.tab');
+  var panels = document.querySelectorAll('.panel');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  for (var j = 0; j < panels.length; j++) panels[j].classList.remove('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  // find matching tab
+  for (var k = 0; k < tabs.length; k++) {
+    if (tabs[k].textContent.toLowerCase().indexOf(name === 'dashboard' ? 'dashboard' : (name === 'clienti' ? 'clienti' : 'log')) !== -1) {
+      tabs[k].classList.add('active');
+    }
+  }
+  if (name === 'log') loadLogData();
+}
+
+// ===== DASHBOARD =====
+function renderDashboard() {
+  // Stats
+  var totaleAperto = 0, numDebitori = 0, totSospesi = 0, totRientri = 0;
+  clienti.forEach(function(c) {
+    var s = calcSaldo(c.id);
+    if (s > 0) { totaleAperto += s; numDebitori++; }
+  });
+  movimenti.forEach(function(m) {
+    if (m.tipo === 'sospeso') totSospesi += Math.abs(parseFloat(m.delta));
+    else totRientri += Math.abs(parseFloat(m.delta));
+  });
+
+  var statsHtml = '';
+  statsHtml += '<div class="stat-card"><div class="stat-label">Totale Aperto</div><div class="stat-value red">' + formatEuro(totaleAperto) + '</div><div class="stat-sub">' + numDebitori + ' debitori</div></div>';
+  statsHtml += '<div class="stat-card"><div class="stat-label">Totale Clienti</div><div class="stat-value blue">' + clienti.length + '</div><div class="stat-sub">attivi</div></div>';
+  statsHtml += '<div class="stat-card"><div class="stat-label">Sospesi Totali</div><div class="stat-value red">' + formatEuro(totSospesi) + '</div><div class="stat-sub">da sempre</div></div>';
+  statsHtml += '<div class="stat-card"><div class="stat-label">Rientri Totali</div><div class="stat-value green">' + formatEuro(totRientri) + '</div><div class="stat-sub">da sempre</div></div>';
+  document.getElementById('statsRow').innerHTML = statsHtml;
+
+  // Classifica debitori
+  var debitori = [];
+  clienti.forEach(function(c) {
+    var s = calcSaldo(c.id);
+    if (s > 0) debitori.push({ nome: c.nome, saldo: s, id: c.id });
+  });
+  debitori.sort(function(a, b) { return b.saldo - a.saldo; });
+
+  var dHtml = '<table><thead><tr><th>#</th><th>Cliente</th><th>Saldo</th><th>Movimenti</th><th>Ultimo</th></tr></thead><tbody>';
+  if (debitori.length === 0) {
+    dHtml += '<tr><td colspan="5" style="text-align:center;color:#888888;padding:24px;">Nessun debitore</td></tr>';
+  }
+  debitori.forEach(function(d, idx) {
+    var rankCls = idx < 3 ? ' rank-' + (idx + 1) : '';
+    var numMov = movimenti.filter(function(m) { return m.cliente_id === d.id; }).length;
+    var ultimo = getUltimoMov(d.id);
+    dHtml += '<tr><td><span class="rank-num' + rankCls + '">' + (idx + 1) + '</span></td>';
+    dHtml += '<td style="font-weight:600;">' + escHtml(d.nome) + '</td>';
+    dHtml += '<td style="font-weight:700;color:#C8102E;">' + formatEuro(d.saldo) + '</td>';
+    dHtml += '<td>' + numMov + '</td>';
+    dHtml += '<td style="color:#888888;">' + (ultimo ? formatDate(ultimo) : '-') + '</td></tr>';
+  });
+  dHtml += '</tbody></table>';
+  document.getElementById('debitoriTable').innerHTML = dHtml;
+
+  // Chart
+  renderChart();
+}
+
+// ===== CHART =====
+function setChartPeriod(days, el) {
+  chartPeriod = days;
+  var btns = document.querySelectorAll('.chart-period-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  if (el) el.classList.add('active');
+  renderChart();
+}
+
+function renderChart() {
+  var canvas = document.getElementById('chartCanvas');
+  var ctx = canvas.getContext('2d');
+  var rect = canvas.parentElement.getBoundingClientRect();
+  var dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.scale(dpr, dpr);
+  var W = rect.width;
+  var H = rect.height;
+
+  var now = Date.now();
+  var startTs = now - chartPeriod * 24 * 60 * 60 * 1000;
+
+  // Group by day
+  var days = {};
+  for (var d = 0; d < chartPeriod; d++) {
+    var dayTs = startTs + d * 24 * 60 * 60 * 1000;
+    var key = new Date(dayTs).toISOString().slice(0, 10);
+    days[key] = { sospesi: 0, rientri: 0 };
+  }
+  movimenti.forEach(function(m) {
+    if (m.ts >= startTs) {
+      var key = new Date(m.ts).toISOString().slice(0, 10);
+      if (days[key]) {
+        if (m.tipo === 'sospeso') days[key].sospesi += Math.abs(parseFloat(m.delta));
+        else days[key].rientri += Math.abs(parseFloat(m.delta));
+      }
+    }
+  });
+
+  var labels = Object.keys(days).sort();
+  var sospesiData = labels.map(function(l) { return days[l].sospesi; });
+  var rientriData = labels.map(function(l) { return days[l].rientri; });
+
+  var maxVal = Math.max.apply(null, sospesiData.concat(rientriData).concat([10]));
+  maxVal = Math.ceil(maxVal / 10) * 10;
+
+  var padL = 60, padR = 20, padT = 20, padB = 40;
+  var chartW = W - padL - padR;
+  var chartH = H - padT - padB;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = '#E0DDD8';
+  ctx.lineWidth = 1;
+  ctx.font = '11px -apple-system, Helvetica Neue, Arial, sans-serif';
+  ctx.fillStyle = '#888888';
+  ctx.textAlign = 'right';
+  var gridLines = 5;
+  for (var g = 0; g <= gridLines; g++) {
+    var y = padT + (chartH / gridLines) * g;
+    var val = maxVal - (maxVal / gridLines) * g;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(W - padR, y);
+    ctx.stroke();
+    ctx.fillText(val.toFixed(0) + ' \u20AC', padL - 8, y + 4);
+  }
+
+  if (labels.length < 2) return;
+  var step = chartW / (labels.length - 1);
+
+  // Draw areas
+  function drawArea(data, color, alpha) {
+    ctx.beginPath();
+    ctx.moveTo(padL, padT + chartH);
+    for (var i = 0; i < data.length; i++) {
+      var x = padL + i * step;
+      var y = padT + chartH - (data[i] / maxVal) * chartH;
+      if (i === 0) ctx.lineTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.lineTo(padL + (data.length - 1) * step, padT + chartH);
+    ctx.closePath();
+    ctx.fillStyle = color.replace('1)', alpha + ')');
+    ctx.fill();
+  }
+
+  function drawLine(data, color) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    for (var i = 0; i < data.length; i++) {
+      var x = padL + i * step;
+      var y = padT + chartH - (data[i] / maxVal) * chartH;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  drawArea(sospesiData, 'rgba(200,16,46,1)', 0.08);
+  drawArea(rientriData, 'rgba(26,122,74,1)', 0.08);
+  drawLine(sospesiData, '#C8102E');
+  drawLine(rientriData, '#1a7a4a');
+
+  // X labels
+  ctx.fillStyle = '#888888';
+  ctx.textAlign = 'center';
+  ctx.font = '10px -apple-system, Helvetica Neue, Arial, sans-serif';
+  var labelStep = Math.max(1, Math.floor(labels.length / 8));
+  for (var l = 0; l < labels.length; l += labelStep) {
+    var x = padL + l * step;
+    var parts = labels[l].split('-');
+    ctx.fillText(parts[2] + '/' + parts[1], x, H - 10);
+  }
+
+  // Legend
+  ctx.font = '12px -apple-system, Helvetica Neue, Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#C8102E';
+  ctx.fillRect(W - padR - 160, padT, 12, 12);
+  ctx.fillText('Sospesi', W - padR - 144, padT + 11);
+  ctx.fillStyle = '#1a7a4a';
+  ctx.fillRect(W - padR - 80, padT, 12, 12);
+  ctx.fillText('Rientri', W - padR - 64, padT + 11);
+}
+
+// ===== CLIENTI TAB =====
+function renderClientiSidebar() {
+  var search = (document.getElementById('clientSearch').value || '').toLowerCase();
+  var filtered = clienti.filter(function(c) { return c.nome.toLowerCase().indexOf(search) !== -1; });
+
+  filtered.forEach(function(c) { c._saldo = calcSaldo(c.id); });
+  filtered.sort(function(a, b) { return Math.abs(b._saldo) - Math.abs(a._saldo); });
+
+  var html = '';
+  filtered.forEach(function(c) {
+    var sel = c.id === selectedClientId ? ' selected' : '';
+    var badgeCls = c._saldo > 0 ? 'debito' : 'saldato';
+    var badgeText = c._saldo > 0 ? 'Da pagare' : 'Saldato';
+    var amtColor = c._saldo > 0 ? 'color:#C8102E;' : 'color:#1a7a4a;';
+    html += '<div class="client-row' + sel + '" onclick="selectClient(\'' + c.id + '\')">';
+    html += '<div class="cr-name"><span class="cr-badge ' + badgeCls + '">' + badgeText + '</span>' + escHtml(c.nome) + '</div>';
+    html += '<div class="cr-amount" style="' + amtColor + '">' + formatEuro(Math.abs(c._saldo)) + '</div>';
+    html += '</div>';
+  });
+  if (filtered.length === 0) html = '<div style="text-align:center;padding:40px;color:#888888;">Nessun cliente trovato</div>';
+  document.getElementById('clientSidebar').innerHTML = html;
+}
+
+function filterClienti() { renderClientiSidebar(); }
+
+function selectClient(id) {
+  selectedClientId = id;
+  renderClientiSidebar();
+  renderClientDetail(id);
+}
+
+function renderClientDetail(id) {
+  var cliente = clienti.find(function(c) { return c.id === id; });
+  if (!cliente) { document.getElementById('clientDetail').innerHTML = '<div class="detail-empty">Cliente non trovato</div>'; return; }
+
+  var saldo = calcSaldo(id);
+  var boxCls = saldo > 0 ? 'red' : 'green';
+  var valCls = saldo > 0 ? 'red' : 'green';
+
+  var html = '';
+  html += '<div class="detail-header"><div class="detail-name">' + escHtml(cliente.nome) + '</div><div style="font-size:12px;color:#888888;">Creato il ' + formatDate(cliente.creato_il) + ' da ' + (cliente.creato_da || '?') + '</div></div>';
+  html += '<div class="detail-saldo-box ' + boxCls + '"><div class="detail-saldo-label">SALDO</div><div class="detail-saldo-value ' + valCls + '">' + formatEuro(Math.abs(saldo)) + '</div></div>';
+
+  // Movimenti completi
+  var movs = movimenti.filter(function(m) { return m.cliente_id === id; });
+  movs.sort(function(a, b) { return b.ts - a.ts; });
+
+  html += '<div class="detail-section-title">Storico Movimenti (' + movs.length + ')</div>';
+  html += '<div class="mov-table-wrap"><table><thead><tr><th>Tipo</th><th>Importo</th><th>Data / Ora</th><th>Operatore</th></tr></thead><tbody>';
+  if (movs.length === 0) {
+    html += '<tr><td colspan="4" style="text-align:center;color:#888888;padding:20px;">Nessun movimento</td></tr>';
+  }
+  movs.forEach(function(m) {
+    var isSospeso = m.tipo === 'sospeso';
+    html += '<tr>';
+    html += '<td><span class="tipo-badge ' + m.tipo + '">' + (isSospeso ? 'Sospeso' : 'Rientro') + '</span></td>';
+    html += '<td style="font-weight:700;color:' + (isSospeso ? '#C8102E' : '#1a7a4a') + ';">' + (isSospeso ? '+' : '-') + formatEuro(Math.abs(parseFloat(m.delta))) + '</td>';
+    html += '<td style="color:#888888;">' + formatDateTime(m.ts) + '</td>';
+    html += '<td>' + (m.device || '?') + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  document.getElementById('clientDetail').innerHTML = html;
+}
+
+// ===== LOG TAB =====
+function setLogOperatore(val, el) {
+  logOperatoreFilter = val;
+  var parent = el.parentElement;
+  var btns = parent.querySelectorAll('.log-filter-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  el.classList.add('active');
+  loadLogData();
+}
+
+function setLogTipo(val, el) {
+  logTipoFilter = val;
+  var parent = el.parentElement;
+  var btns = parent.querySelectorAll('.log-filter-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  el.classList.add('active');
+  loadLogData();
+}
+
+function loadLogData() {
+  var url = 'log?select=*&order=ts.desc&limit=500';
+  if (logOperatoreFilter !== 'tutti') url += '&device=eq.' + logOperatoreFilter;
+  if (logTipoFilter !== 'tutti') url += '&azione=eq.' + logTipoFilter;
+
+  var dateFrom = document.getElementById('logDateFrom').value;
+  var dateTo = document.getElementById('logDateTo').value;
+  if (dateFrom) {
+    var fromTs = new Date(dateFrom).getTime();
+    url += '&ts=gte.' + fromTs;
+  }
+  if (dateTo) {
+    var toTs = new Date(dateTo).getTime() + 24 * 60 * 60 * 1000;
+    url += '&ts=lt.' + toTs;
+  }
+
+  sbFetch(url).then(function(r) { return r.json(); }).then(function(logs) {
+    allLogs = logs || [];
+    var searchTerm = (document.getElementById('logSearch').value || '').toLowerCase();
+    if (searchTerm) {
+      allLogs = allLogs.filter(function(l) {
+        return l.cliente_nome.toLowerCase().indexOf(searchTerm) !== -1;
+      });
+    }
+    renderLogTable();
+  }).catch(function() {
+    document.getElementById('logTableWrap').innerHTML = '<div style="padding:24px;color:#C8102E;text-align:center;">Errore caricamento log</div>';
+  });
+}
+
+function renderLogTable() {
+  document.getElementById('logCount').textContent = allLogs.length + ' operazioni trovate';
+
+  var html = '<table><thead><tr><th>Azione</th><th>Cliente</th><th>Importo</th><th>Operatore</th><th>Data / Ora</th><th>Note</th></tr></thead><tbody>';
+  if (allLogs.length === 0) {
+    html += '<tr><td colspan="6" style="text-align:center;color:#888888;padding:24px;">Nessuna operazione</td></tr>';
+  }
+  allLogs.forEach(function(l) {
+    var actionCls = l.azione || '';
+    html += '<tr>';
+    html += '<td><span class="log-action ' + actionCls + '">' + escHtml(l.azione) + '</span></td>';
+    html += '<td style="font-weight:600;">' + escHtml(l.cliente_nome) + '</td>';
+    html += '<td style="font-weight:700;">' + (l.delta !== null && l.delta !== undefined ? formatEuro(Math.abs(parseFloat(l.delta))) : '-') + '</td>';
+    html += '<td>' + (l.device || '?') + '</td>';
+    html += '<td style="color:#888888;">' + formatDateTime(l.ts) + '</td>';
+    html += '<td style="color:#888888;font-style:italic;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(l.dettaglio || '') + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('logTableWrap').innerHTML = html;
+}
+
+// ===== HELPERS =====
+function calcSaldo(clienteId) {
+  var total = 0;
+  movimenti.forEach(function(m) {
+    if (m.cliente_id === clienteId) total += parseFloat(m.delta);
+  });
+  return Math.round(total * 100) / 100;
+}
+
+function getUltimoMov(clienteId) {
+  var last = 0;
+  movimenti.forEach(function(m) {
+    if (m.cliente_id === clienteId && m.ts > last) last = m.ts;
+  });
+  return last || 0;
+}
+
+function formatEuro(n) { return n.toFixed(2).replace('.', ',') + ' \u20AC'; }
+function formatDate(ts) { var d = new Date(ts); return pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + d.getFullYear(); }
+function formatDateTime(ts) { var d = new Date(ts); return pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function escHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
+function showToast(msg) { var t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); }, 2000); }
+
+// Resize chart on window resize
+window.addEventListener('resize', function() {
+  if (document.getElementById('panel-dashboard').classList.contains('active')) renderChart();
+});
+</script>
+</body>
+</html>
